@@ -1,0 +1,28 @@
+# virtual environment
+.venv/
+
+# Python cache 
+__pycache__/
+*.py[cod]
+
+# Tool caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# VS Code local settings
+.vscode/
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# Environment variables and secrets
+*.env
+*.env.*
+!.env.example
+

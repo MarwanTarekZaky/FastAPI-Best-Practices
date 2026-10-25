@@ -1,0 +1,15 @@
+[project]
+name = "fastapi-foundational-layer"
+version = "0.1.0"
+description = "FastAPI learning and practice project"
+requires-python = "==3.14.*"
+dependencies = [
+    "fastapi[all]",
+    "scalar-fastapi",
+]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.ruff]
+line-length = 88
