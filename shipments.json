@@ -1,0 +1,37 @@
+[
+    {
+        "id": 12701,
+        "weight": 8.2,
+        "content": "aluminum sheets",
+        "status": "placed",
+        "destination": 11002
+    },
+    {
+        "id": 12702,
+        "weight": 14.7,
+        "content": "steel rods",
+        "status": "in_transit",
+        "destination": 11003
+    },
+    {
+        "id": 12703,
+        "weight": 11.4,
+        "content": "copper wires",
+        "status": "delivered",
+        "destination": 11002
+    },
+    {
+        "id": 12704,
+        "weight": 17.8,
+        "content": "iron plates",
+        "status": "out_for_delivery",
+        "destination": 11005
+    },
+    {
+        "id": 12705,
+        "weight": 10.3,
+        "content": "brass fittings",
+        "status": "delivered",
+        "destination": 11008
+    }
+]
