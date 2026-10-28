@@ -1,33 +1,25 @@
-from pathlib import Path
-from typing import Annotated
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel import SQLModel
 
-from fastapi import Depends
-from sqlalchemy import create_engine
-from sqlmodel import Session, SQLModel
-
-# sqlite.db in the project root (app/database -> app -> root)
-DB_PATH = Path(__file__).parent.parent.parent / "sqlite.db"
+from app.config import settings
 
 # Create a database engine to connect with database
-engine = create_engine(
-    # database type/dialect and file name
-    url=f"sqlite:///{DB_PATH}",
+engine = create_async_engine(
+    url=settings.POSTGRES_URL,
     # Log sql queries
     echo=True,
-    connect_args={"check_same_thread": False},
 )
 
-
-def create_db_tables():
-    from .models import Shipment  # noqa: F401
-    SQLModel.metadata.create_all(bind=engine)
+# Session factory, created once and reused for every request
+async_session = async_sessionmaker(bind=engine, expire_on_commit=False)
 
 
-# Session to interact with database
-def get_session():
-    with Session(bind=engine) as session:
+async def create_db_tables():
+    async with engine.begin() as connection:
+        from app.database.models import Shipment  # noqa: F401
+        await connection.run_sync(SQLModel.metadata.create_all)
+
+
+async def get_session():
+    async with async_session() as session:
         yield session
-
-
-# Session Dependency Annotation
-SessionDep = Annotated[Session, Depends(get_session)]

@@ -26,3 +26,6 @@ __pycache__/
 *.env.*
 !.env.example
 
+
+# Local testing files
+/Temp
