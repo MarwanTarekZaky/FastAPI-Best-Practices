@@ -3,7 +3,7 @@ from enum import Enum
 
 from sqlalchemy import DateTime
 from sqlmodel import Field, SQLModel
-
+from pydantic import EmailStr
 
 class ShipmentStatus(str, Enum):
     placed = "placed"
@@ -23,3 +23,11 @@ class Shipment(SQLModel, table=True):
     status: ShipmentStatus
     # sa_type=DateTime stores plain datetime (newer SQLModel requires a timezone by default)
     estimated_delivery: datetime = Field(sa_type=DateTime)
+    
+
+class Seller(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    name: str
+    
+    email: EmailStr
+    password_hash: str
