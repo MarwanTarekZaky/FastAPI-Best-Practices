@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi import HTTPException, status
-
 import jwt
+from fastapi import HTTPException, status
 
 from app.config import security_settings
 
@@ -13,7 +12,7 @@ def generate_access_token(data: dict, expiry: timedelta = timedelta(days=7)) -> 
         payload={
             **data,
             "jti": str(uuid4()),
-            "exp": datetime.now(timezone.utc) + expiry}
+            "exp": datetime.now(UTC) + expiry}
         ,
         algorithm=security_settings.JWT_ALGORITHM,
         key=security_settings.JWT_SECRET,

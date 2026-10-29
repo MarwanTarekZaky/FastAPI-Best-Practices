@@ -1,10 +1,9 @@
 from typing import Annotated
 
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer
-from fastapi import HTTPException, Depends
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, OAuth2PasswordBearer
 
 from app.utils import decode_access_token
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/seller/token")
 

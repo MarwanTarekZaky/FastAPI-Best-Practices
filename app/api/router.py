@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
-from .routers import shipment, seller
-
+from .routers import seller, shipment
 
 master_router = APIRouter()
 

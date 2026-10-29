@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.seller import SellerCreate
 from app.database.models import Seller
@@ -44,7 +44,7 @@ class SellerService:
         token = generate_access_token(data={
             "user":{
                 "name": seller.name,
-                "id": seller.id
+                "id": str(seller.id)
             }
         })
         

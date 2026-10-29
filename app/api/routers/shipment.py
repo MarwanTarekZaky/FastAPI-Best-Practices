@@ -1,8 +1,10 @@
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.database.models import Shipment
 
-from ..dependencies import ShipmentServiceDep, SellerDep
+from ..dependencies import SellerDep, ShipmentServiceDep
 from ..schemas.shipment import ShipmentCreate, ShipmentRead, ShipmentUpdate
 
 router = APIRouter(prefix="/shipment", tags=["shipment"])
@@ -12,7 +14,7 @@ router = APIRouter(prefix="/shipment", tags=["shipment"])
 @router.get("/", response_model=ShipmentRead)
 async def get_shipment(
     _: SellerDep,
-    id: int,
+    id: UUID,
     service: ShipmentServiceDep,
 ):
     # Check for shipment with given id
@@ -34,13 +36,13 @@ async def submit_shipment(
     shipment: ShipmentCreate,
     service: ShipmentServiceDep,
 ) -> Shipment:
-    return await service.add(shipment)
+    return await service.add(shipment, seller)
 
 
 ### Update fields of a shipment
 @router.patch("/", response_model=Shipment)
 async def update_shipment(
-    id: int, shipment_update: ShipmentUpdate, service: ShipmentServiceDep
+    id: UUID, shipment_update: ShipmentUpdate, service: ShipmentServiceDep
 ):
     # Update data with given fields
     update = shipment_update.model_dump(exclude_none=True)
@@ -64,7 +66,7 @@ async def update_shipment(
 
 ### Delete a shipment by id
 @router.delete("/")
-async def delete_shipment(id: int, service: ShipmentServiceDep) -> dict[str, str]:
+async def delete_shipment(id: UUID, service: ShipmentServiceDep) -> dict[str, str]:
 
     # Remove from database
     await service.delete(id)
