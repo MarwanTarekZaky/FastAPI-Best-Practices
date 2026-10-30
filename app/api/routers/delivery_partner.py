@@ -16,7 +16,7 @@ from ..schemas.delivery_partner import (
     DeliveryPartnerUpdate,
 )
 
-router = APIRouter(prefix="/parnter", tags=["Delivery Partner"])
+router = APIRouter(prefix="/partner", tags=["Delivery Partner"])
 
 
 ### Register a delivery
