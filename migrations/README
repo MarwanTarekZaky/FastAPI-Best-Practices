@@ -1,2 +1,2 @@
-alembic revision --autogenerate -m "add seller phone"
+alembic revision --autogenerate -m "add Delivery parnter"
 alembic upgrade head

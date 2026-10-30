@@ -6,7 +6,6 @@ from scalar_fastapi import get_scalar_api_reference
 from app.api.router import master_router
 
 
-
 @asynccontextmanager
 async def lifespan_handler(app: FastAPI):
     yield

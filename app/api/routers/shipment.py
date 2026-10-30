@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.database.models import Shipment
 
-from ..dependencies import SellerDep, ShipmentServiceDep
+from ..dependencies import DeliveryPartnerDep, SellerDep, ShipmentServiceDep
 from ..schemas.shipment import ShipmentCreate, ShipmentRead, ShipmentUpdate
 
 router = APIRouter(prefix="/shipment", tags=["shipment"])
@@ -42,7 +42,10 @@ async def submit_shipment(
 ### Update fields of a shipment
 @router.patch("/", response_model=Shipment)
 async def update_shipment(
-    id: UUID, shipment_update: ShipmentUpdate, service: ShipmentServiceDep
+    id: UUID,
+    shipment_update: ShipmentUpdate,
+    service: ShipmentServiceDep,
+    partner: DeliveryPartnerDep,
 ):
     # Update data with given fields
     update = shipment_update.model_dump(exclude_none=True)
@@ -54,21 +57,43 @@ async def update_shipment(
         )
 
     shipment = await service.get(id)
-
     if shipment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Given id doesn't exist!",
         )
 
-    return await service.update(id, update)
+    if shipment.delivery_partner_id != partner.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized",
+        )
+
+    return await service.update(shipment.sqlmodel_update(update))
 
 
 ### Delete a shipment by id
 @router.delete("/")
-async def delete_shipment(id: UUID, service: ShipmentServiceDep) -> dict[str, str]:
+async def delete_shipment(
+    id: UUID,
+    seller: SellerDep,
+    service: ShipmentServiceDep
+) -> dict[str, str]:
 
     # Remove from database
-    await service.delete(id)
-
+    shipment = await service.get(id)
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Given id doesn't exist!",
+        )
+        
+    if shipment.seller_id != seller.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized",
+        )
+        
+    await service.delete(shipment)
+        
     return {"detail": f"Shipment with id #{id} is deleted!"}

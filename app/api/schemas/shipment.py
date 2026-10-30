@@ -3,18 +3,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.database.models import Seller, ShipmentStatus
+from app.database.models import ShipmentStatus
 
 
 class BaseShipment(BaseModel):
     content: str
-    weight: float = Field(le=25)
+    weight: float = Field(gt=0, le=25)
     destination: int
 
 
 class ShipmentRead(BaseShipment):
     id: UUID
-    seller: Seller
     status: ShipmentStatus
     estimated_delivery: datetime
 

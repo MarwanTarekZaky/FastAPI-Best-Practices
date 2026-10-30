@@ -9,7 +9,7 @@ from sqlmodel import SQLModel
 from alembic import context
 
 from app.config import db_settings
-from app.database.models import Shipment, Seller
+from app.database.models import Shipment, Seller, User, DeliveryPartner
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
