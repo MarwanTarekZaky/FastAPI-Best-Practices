@@ -7,6 +7,7 @@ class BaseSeller(BaseModel):
     address: str | None = None
     zip_code: int | None = None
 
+
 class SellerRead(BaseSeller):
     pass
 

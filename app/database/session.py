@@ -16,7 +16,6 @@ async_session = async_sessionmaker(bind=engine, expire_on_commit=False)
 
 async def create_db_tables():
     async with engine.begin() as connection:
-        from app.database.models import Shipment  # noqa: F401
         await connection.run_sync(SQLModel.metadata.create_all)
 
 

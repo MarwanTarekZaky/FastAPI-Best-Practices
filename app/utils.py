@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import jwt
@@ -6,14 +7,17 @@ from fastapi import HTTPException, status
 
 from app.config import security_settings
 
+APP_DIR = Path(__file__).resolve().parent
+TEMPLATE_DIR = APP_DIR / "templates"
+
 
 def generate_access_token(data: dict, expiry: timedelta = timedelta(days=7)) -> str:
     return jwt.encode(
         payload={
             **data,
             "jti": str(uuid4()),
-            "exp": datetime.now(UTC) + expiry}
-        ,
+            "exp": datetime.now(UTC) + expiry
+        },
         algorithm=security_settings.JWT_ALGORITHM,
         key=security_settings.JWT_SECRET,
     )

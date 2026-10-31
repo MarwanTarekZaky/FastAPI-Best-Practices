@@ -3,12 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Shipment, ShipmentEvent, ShipmentStatus
 from app.services.base import BaseService
+from app.services.notification import NotificationService
 
 
 class ShipmentEventService(BaseService):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, tasks):
         super().__init__(ShipmentEvent, session)
-
+        self.notification_service = NotificationService(tasks)
+        
     async def add(
         self,
         shipment: Shipment,
@@ -34,7 +36,13 @@ class ShipmentEventService(BaseService):
             shipment_id=shipment.id,
         )
 
-        return await self._add(new_event)
+        event = await self._add(new_event)
+
+        # Only email the client when the status changes
+        if last_event is None or last_event.status != status:
+            await self._notify(shipment, status)
+
+        return event
 
     async def get_latest_event(
         self,
@@ -46,12 +54,49 @@ class ShipmentEventService(BaseService):
     def _generate_description(self, status: ShipmentStatus, location: int):
         match status:
             case ShipmentStatus.placed:
-                return "Placed"
-            case ShipmentStatus.delivered:
-                return "Delivered"
+                return "assigned delivery partner"
             case ShipmentStatus.out_for_delivery:
-                return "Out for delivery"
+                return "shipment out for delivery"
+            case ShipmentStatus.delivered:
+                return "successfully delivered"
             case ShipmentStatus.cancelled:
-                return "Cancelled by the seller"
-            case _:
-                return f"Scanned at {location}"
+                return "cancelled by seller"
+            case _:  # and ShipmentStatus.in_transit
+                return f"scanned at {location}"
+    
+    async def _notify(self, shipment: Shipment, status: ShipmentStatus):
+        
+        if status == ShipmentStatus.in_transit:
+            return
+
+        subject: str
+        context = {}
+        template_name: str
+
+        match status:
+            case ShipmentStatus.placed:
+                subject="Your Order is Shipped 🚛"
+                context["seller"] = shipment.seller.name
+                context["partner"] = shipment.delivery_partner.name
+                template_name="mail_placed.html"
+
+            case ShipmentStatus.out_for_delivery:
+                subject="Your Order is Arriving Soon 🛵"
+                template_name = "mail_out_for_delivery.html"
+                
+            case ShipmentStatus.delivered:
+                subject = "Your Order is Delivered ✅"
+                context["seller"] = shipment.seller.name
+                template_name = "mail_delivered.html"
+
+            case ShipmentStatus.cancelled:
+                subject = "Your Order is Cancelled ❌"
+                template_name = "mail_cancelled.html"
+
+        await self.notification_service.send_email_with_template(
+            recipients=[shipment.client_contact_email],
+            subject=subject,
+            context=context,
+            template_name=template_name,
+        )
+

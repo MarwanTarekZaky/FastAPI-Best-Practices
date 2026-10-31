@@ -33,6 +33,10 @@ class Shipment(SQLModel, table=True):
         )
     )
 
+    client_contact_email: EmailStr
+    # Text, phone numbers can start with + or 0 and don't fit in an integer column
+    client_contact_phone: str | None = Field(default=None)
+    
     content: str
     weight: float = Field(le=25)
     destination: int
@@ -51,6 +55,7 @@ class Shipment(SQLModel, table=True):
         back_populates="shipments",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
+    
     delivery_partner_id: UUID = Field(
         foreign_key="delivery_partner.id",
     )

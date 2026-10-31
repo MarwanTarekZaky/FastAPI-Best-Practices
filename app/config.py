@@ -30,7 +30,23 @@ class SecuritySettings(BaseSettings):
 
     model_config = _base_config
 
+class NotificationSettings(BaseSettings):
+
+    MAIL_USERNAME: str
+    MAIL_PASSWORD: str
+    MAIL_FROM: str
+    MAIL_PORT: int
+    MAIL_SERVER: str
+    MAIL_FROM_NAME: str
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
+    USE_CREDENTIALS: bool = True
+    VALIDATE_CERTS: bool = True
+
+    model_config = _base_config
+
 
 # Values are loaded from .env, type checkers can't see that
 db_settings = DatabaseSettings()  # type: ignore[call-arg]
 security_settings = SecuritySettings()  # type: ignore[call-arg]
+notification_settings = NotificationSettings() # type: ignore[call-arg]

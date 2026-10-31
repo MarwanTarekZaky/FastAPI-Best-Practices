@@ -36,7 +36,7 @@ class ShipmentService(BaseService):
         )
         new_shipment.delivery_partner_id = partner.id
         
-        shipment = await self._add(new_shipment)
+        shipment: Shipment = await self._add(new_shipment)
         
         event = await self.event_service.add(
             shipment=shipment,

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, EmailStr, Field
 
 from app.database.models import ShipmentEvent, ShipmentStatus
 
@@ -20,12 +20,12 @@ class ShipmentRead(BaseShipment):
 
 
 class ShipmentCreate(BaseShipment):
-    pass
+    client_contact_email: EmailStr
+    client_contact_phone: str | None = Field(default=None)
 
 
 class ShipmentUpdate(BaseModel):
     location: int | None = Field(default=None)
     description: str | None = Field(default=None)
     status: ShipmentStatus | None = Field(default=None)
-    # Timezone is required, the database column stores timezone aware values
     estimated_delivery: AwareDatetime | None = Field(default=None)
