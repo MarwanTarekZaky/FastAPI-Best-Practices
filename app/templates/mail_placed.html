@@ -1,7 +1,8 @@
 <body>
     <p>Hi 👋,</p>
     <p>Your order with {{ seller }} is picked up by </p>
-    <p>{{ partner }} and is on its way to you.</p>
+    <p>{{ partner }} and is on its way to you. Use the link below to track your order.</p>
+    <p><a href="http://localhost:8000/shipment/track?id={{ id }}">Track your order</a></p>
     <br>
     <p>Powered by FastShip</p>
 </body>
