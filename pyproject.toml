@@ -14,6 +14,7 @@ dependencies = [
     "pyjwt==2.15.1",
     "redis[hiredis]",
     "alembic",
+    "fastapi-mail",
 ]
 
 [dependency-groups]
