@@ -37,7 +37,14 @@ class Shipment(SQLModel, table=True):
     weight: float = Field(le=25)
     destination: int
     estimated_delivery: datetime | None
-    status: ShipmentStatus
+    
+    timeline: list[ShipmentEvent] = Relationship(
+        back_populates="shipment",
+        sa_relationship_kwargs={
+            "lazy": "selectin",
+            "order_by": "ShipmentEvent.created_at",
+        },
+    )
 
     seller_id: UUID = Field(foreign_key="seller.id")
     seller: Seller = Relationship(
@@ -51,8 +58,40 @@ class Shipment(SQLModel, table=True):
         back_populates="shipments",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
+    
+    @property
+    def status(self):
+        return self.timeline[-1].status if len(self.timeline) > 0 else None
 
 
+class ShipmentEvent(SQLModel, table=True):
+    __tablename__="shipment_event"
+    
+    id: UUID = Field(
+            sa_column=Column(
+                postgresql.UUID,
+                default=uuid4,
+                primary_key=True,
+            )
+        )
+    
+    created_at: datetime = Field(
+        sa_column=Column(
+            postgresql.TIMESTAMP,
+            default=datetime.now,
+        )
+    )
+    
+    location: int
+    status: ShipmentStatus
+    description: str | None = Field(default=None)
+    
+    shipment_id: UUID = Field(foreign_key="shipment.id")
+    shipment: Shipment = Relationship(
+        back_populates="timeline",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
+    
 class User(SQLModel):
     name: str
 
@@ -77,6 +116,9 @@ class Seller(User, table=True):
             default=datetime.now,
         )
     )
+    
+    address: str | None = Field(default=None)
+    zip_code: int | None = Field(default=None)
 
     shipments: list[Shipment] = Relationship(
         back_populates="seller",
@@ -124,3 +166,5 @@ class DeliveryPartner(User, table=True):
     @property
     def current_handling_capacity(self):
         return self.max_handling_capacity - len(self.active_shipments)
+
+

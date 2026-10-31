@@ -40,7 +40,7 @@ async def submit_shipment(
 
 
 ### Update fields of a shipment
-@router.patch("/", response_model=Shipment)
+@router.patch("/", response_model=ShipmentRead)
 async def update_shipment(
     id: UUID,
     shipment_update: ShipmentUpdate,
@@ -56,44 +56,15 @@ async def update_shipment(
             detail="No data provided to update",
         )
 
-    shipment = await service.get(id)
-    if shipment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Given id doesn't exist!",
-        )
-
-    if shipment.delivery_partner_id != partner.id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized",
-        )
-
-    return await service.update(shipment.sqlmodel_update(update))
+    return await service.update(id, shipment_update, partner)
 
 
-### Delete a shipment by id
-@router.delete("/")
-async def delete_shipment(
+### Cancel a shipment by id
+@router.get("/cancel", response_model=ShipmentRead)
+async def cancel_shipment(
     id: UUID,
     seller: SellerDep,
     service: ShipmentServiceDep
-) -> dict[str, str]:
+):
+    return await service.cancel(id, seller)
 
-    # Remove from database
-    shipment = await service.get(id)
-    if shipment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Given id doesn't exist!",
-        )
-        
-    if shipment.seller_id != seller.id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized",
-        )
-        
-    await service.delete(shipment)
-        
-    return {"detail": f"Shipment with id #{id} is deleted!"}
