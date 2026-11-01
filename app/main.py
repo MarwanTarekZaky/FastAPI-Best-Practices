@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Response
-from fastapi.responses import(
+from fastapi.responses import (
     FileResponse,
     JSONResponse,
     RedirectResponse,
