@@ -1,6 +1,11 @@
 <body>
     <p>Our delivery executive is on the way to deliver your shipment. Please ensure you are available at the delivery
         location and answer to rider's incoming call.</p>
+    {% if code %}
+    <p>Your delivery code is <strong>{{ code }}</strong>. Share it only with the delivery partner when you receive your shipment.</p>
+    {% else %}
+    <p>We sent your delivery code by SMS. Share it only with the delivery partner when you receive your shipment.</p>
+    {% endif %}
     <br>
     <p>Powered by FastShip</p>
 </body>

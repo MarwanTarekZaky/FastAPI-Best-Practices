@@ -2,8 +2,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Shipment, ShipmentEvent, ShipmentStatus
+from app.database.redis import save_verification_code
 from app.services.base import BaseService
 from app.services.notification import NotificationService
+from app.utils import generate_verification_code, hash_verification_code
 
 
 class ShipmentEventService(BaseService):
@@ -64,6 +66,31 @@ class ShipmentEventService(BaseService):
             case _:  # and ShipmentStatus.in_transit
                 return f"scanned at {location}"
     
+    async def _create_verification_code(self, shipment: Shipment) -> str:
+        # Only the hash is stored, the real code goes to the client
+        code = generate_verification_code()
+        await save_verification_code(
+            shipment.id,
+            hash_verification_code(shipment.id, code)
+        )
+        return code
+    
+    async def resend_verification_code(self, shipment: Shipment):
+        code = await self._create_verification_code(shipment)
+        
+        if shipment.client_contact_phone:
+            await self.notification_service.send_verification_sms(
+                shipment.client_contact_phone,
+                shipment.client_contact_email,
+                code
+            ) 
+        else:
+            await self.notification_service.send_email(
+                recipients=[shipment.client_contact_email],
+                subject="Your FastShip delivery code",
+                body=f"Your FastShip delivery code is {code}. Share it only with the delivery partner.",
+            )
+            
     async def _notify(self, shipment: Shipment, status: ShipmentStatus):
         
         if status == ShipmentStatus.in_transit:
@@ -84,6 +111,16 @@ class ShipmentEventService(BaseService):
             case ShipmentStatus.out_for_delivery:
                 subject="Your Order is Arriving Soon 🛵"
                 template_name = "mail_out_for_delivery.html"
+                code = await self._create_verification_code(shipment)
+                
+                if shipment.client_contact_phone:
+                    await self.notification_service.send_verification_sms(
+                        shipment.client_contact_phone,
+                        shipment.client_contact_email,
+                        code,
+                    )
+                else:
+                    context["code"] = code
                 
             case ShipmentStatus.delivered:
                 subject = "Your Order is Delivered ✅"

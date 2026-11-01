@@ -15,6 +15,7 @@ dependencies = [
     "redis[hiredis]",
     "alembic",
     "fastapi-mail",
+    "twilio",
 ]
 
 [dependency-groups]

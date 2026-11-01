@@ -6,7 +6,12 @@ from fastapi.templating import Jinja2Templates
 from app.utils import TEMPLATE_DIR
 
 from ..dependencies import DeliveryPartnerDep, SellerDep, ShipmentServiceDep
-from ..schemas.shipment import ShipmentCreate, ShipmentRead, ShipmentUpdate
+from ..schemas.shipment import (
+    ShipmentCreate,
+    ShipmentRead,
+    ShipmentUpdate,
+    ShipmentVerify,
+)
 
 router = APIRouter(prefix="/shipment", tags=["Shipment"])
 
@@ -80,6 +85,28 @@ async def update_shipment(
         )
 
     return await service.update(id, shipment_update, partner)
+
+
+### Delivery partner confirms delivery with the client's code
+@router.post("/verify", response_model=ShipmentRead)
+async def verify_delivery(
+    id: UUID,
+    verification: ShipmentVerify,
+    service: ShipmentServiceDep,
+    partner: DeliveryPartnerDep,
+):
+    return await service.verify_delivery(id, verification.code, partner)
+
+
+### Send the client a new code
+@router.post("/resend-code")
+async def resend_verification_code(
+    id: UUID,
+    service: ShipmentServiceDep,
+    partner: DeliveryPartnerDep
+) -> dict[str, str]:
+    await service.resend_verification_code(id, partner)
+    return {"detail": "A new code was sent to the client"}
 
 
 ### Cancel a shipment by id

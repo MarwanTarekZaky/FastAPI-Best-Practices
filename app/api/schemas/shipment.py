@@ -21,7 +21,11 @@ class ShipmentRead(BaseShipment):
 
 class ShipmentCreate(BaseShipment):
     client_contact_email: EmailStr
-    client_contact_phone: str | None = Field(default=None)
+    # E.164 format, the only format Twilio accepts, for example +201012345678
+    client_contact_phone: str | None = Field(
+        default=None,
+        pattern=r"^\+[1-9]\d{7,14}$",
+    )
 
 
 class ShipmentUpdate(BaseModel):
@@ -29,3 +33,7 @@ class ShipmentUpdate(BaseModel):
     description: str | None = Field(default=None)
     status: ShipmentStatus | None = Field(default=None)
     estimated_delivery: AwareDatetime | None = Field(default=None)
+
+
+class ShipmentVerify(BaseModel):
+    code: str = Field(pattern=r"^\d{6}$")

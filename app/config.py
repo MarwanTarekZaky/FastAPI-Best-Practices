@@ -27,6 +27,8 @@ class SecuritySettings(BaseSettings):
 
     JWT_SECRET: str
     JWT_ALGORITHM: str
+    VERIFICATION_CODE_SECRET: str
+
 
     model_config = _base_config
 
@@ -46,7 +48,17 @@ class NotificationSettings(BaseSettings):
     model_config = _base_config
 
 
+class TwilioSettings(BaseSettings):
+    
+    TWILIO_ACCOUNT_SID: str
+    TWILIO_AUTH_TOKEN: str
+    TWILIO_NUMBER: str
+
+    model_config = _base_config
+    
+    
 # Values are loaded from .env, type checkers can't see that
 db_settings = DatabaseSettings()  # type: ignore[call-arg]
 security_settings = SecuritySettings()  # type: ignore[call-arg]
 notification_settings = NotificationSettings() # type: ignore[call-arg]
+twilio_settings = TwilioSettings()  # type: ignore[call-arg]
