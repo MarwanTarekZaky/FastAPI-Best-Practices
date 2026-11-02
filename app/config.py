@@ -56,9 +56,20 @@ class TwilioSettings(BaseSettings):
 
     model_config = _base_config
     
-    
+ 
+class CelerySettings(BaseSettings):
+
+    CELERY_BROKER_URL: str
+    CELERY_RESULT_BACKEND: str
+    FLOWER_USER: str
+    FLOWER_PASSWORD: str
+
+    model_config = _base_config
+
+   
 # Values are loaded from .env, type checkers can't see that
 db_settings = DatabaseSettings()  # type: ignore[call-arg]
 security_settings = SecuritySettings()  # type: ignore[call-arg]
 notification_settings = NotificationSettings() # type: ignore[call-arg]
 twilio_settings = TwilioSettings()  # type: ignore[call-arg]
+celery_settings = CelerySettings()  # type: ignore[call-arg]

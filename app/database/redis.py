@@ -1,6 +1,7 @@
 from datetime import timedelta
 from uuid import UUID
 
+from redis import Redis as SyncRedis
 from redis.asyncio import Redis
 
 from app.config import db_settings
@@ -12,6 +13,14 @@ _token_blacklist = Redis(
 )
 
 _verification = Redis(
+    host=db_settings.REDIS_HOST,
+    port=db_settings.REDIS_PORT,
+    db=0,
+    decode_responses=True,
+)
+
+# Celery tasks are normal functions, so they use the non-async client
+_verification_sync = SyncRedis(
     host=db_settings.REDIS_HOST,
     port=db_settings.REDIS_PORT,
     db=0,
@@ -30,13 +39,14 @@ async def is_jti_blacklisted(jti: str) -> bool:
     return bool(await _token_blacklist.exists(f"blacklist:{jti}"))
 
 
-async def save_verification_code(shipment_id: UUID, code_hash: str):
-    # A new code replace the old one and reset the failed attempts
-    await _verification.set(
+def save_verification_code(shipment_id: UUID | str, code_hash: str):
+    # A new code replaces the old one and resets the failed attempts
+    _verification_sync.set(
         f"verification:code:{shipment_id}", code_hash, ex=VERIFICATION_CODE_TTL
     )
-    await _verification.delete(f"verification:attempts:{shipment_id}")
-    
+    _verification_sync.delete(f"verification:attempts:{shipment_id}")
+
+   
 async def get_verification_code_hash(shipment_id: UUID) -> str | None:
     return await _verification.get(f"verification:code:{shipment_id}")  # type: ignore[return-value]
 

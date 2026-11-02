@@ -47,7 +47,7 @@ def generate_verification_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def hash_verification_code(shipment_id: UUID, code: str) -> str:
+def hash_verification_code(shipment_id: UUID | str, code: str) -> str:
     # The secret makes it impossible to try all 1,000,000 codes aganist a leaked hash
     return hmac.new(
         security_settings.VERIFICATION_CODE_SECRET.encode(),
