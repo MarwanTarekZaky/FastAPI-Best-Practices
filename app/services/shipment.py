@@ -5,7 +5,21 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.shipment import ShipmentCreate, ShipmentUpdate
-from app.database.models import DeliveryPartner, Seller, Shipment, ShipmentStatus
+from app.core.exceptions import (
+    AlreadyExists,
+    EntityNotFound,
+    InvalidInput,
+    InvalidState,
+    NotAllowed,
+    TooManyAttempts,
+)
+from app.database.models import (
+    DeliveryPartner,
+    Seller,
+    Shipment,
+    ShipmentStatus,
+    TagName,
+)
 from app.database.redis import (
     can_resend_verification_code,
     count_verification_attempt,
@@ -17,6 +31,7 @@ from app.utils import is_valid_verification_code
 
 from .base import BaseService
 from .delivery_partner import DeliveryPartnerService
+from .tag import TagService
 
 MAX_VERIFICATION_ATTEMPTS = 5
 FINISHED_STATUSES = (ShipmentStatus.delivered, ShipmentStatus.cancelled)
@@ -26,10 +41,12 @@ class ShipmentService(BaseService):
         self, session: AsyncSession,
         partner_service: DeliveryPartnerService,
         event_service: ShipmentEventService,
+        tag_service: TagService,
     ) -> None:
         super().__init__(Shipment, session)
         self.partner_service = partner_service
         self.event_service = event_service
+        self.tag_service = tag_service
     
     async def get(self, id: UUID) -> Shipment | None:
         return await self._get(id)
@@ -67,12 +84,7 @@ class ShipmentService(BaseService):
     ) -> Shipment | None:
         
         shipment = await self._get_partner_shipment(id, partner)
-
-        if shipment.status in FINISHED_STATUSES:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Shipment is already {shipment.status.value}",
-            )
+        self._ensure_active(shipment)
 
         # Delivery needs the client's code, see verify_delivery
         if shipment_update.status == ShipmentStatus.delivered:
@@ -80,7 +92,6 @@ class ShipmentService(BaseService):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Use /shipment/verify with the client's code to mark as delivered",
             )
-
         
         update = shipment_update.model_dump(exclude_none=True)
         estimated_delivery = update.pop("estimated_delivery", None)
@@ -99,24 +110,8 @@ class ShipmentService(BaseService):
     
     async def cancel(self, id: UUID, seller: Seller) -> Shipment:
         shipment = await self.get(id)
-        if shipment is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Given id doesn't exist!",
-            )
-            
-        if shipment.seller_id != seller.id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authorized",
-            )
-            
-        if shipment.status in FINISHED_STATUSES:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Shipment is already {shipment.status.value}",
-            )
-   
+        self._ensure_active(shipment)
+        
         event = await self.event_service.add(
             shipment=shipment,
             status=ShipmentStatus.cancelled
@@ -134,19 +129,27 @@ class ShipmentService(BaseService):
     ) -> Shipment:
         shipment = await self.get(id)
         if shipment is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Given id doesn't exist!",
-            )
+            raise EntityNotFound("Shipment not found")
 
         if shipment.delivery_partner_id != partner.id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authorized",
-            )
+            raise NotAllowed()
 
         return shipment
     
+    async def _get_seller_shipment(self, id: UUID, seller: Seller) -> Shipment:
+        shipment = await self.get(id)
+        if shipment is None:
+            raise EntityNotFound("Shipment not found")
+
+        if shipment.seller_id != seller.id:
+            raise NotAllowed()
+
+        return shipment
+    
+    def _ensure_active(self, shipment: Shipment):
+        if shipment.status in FINISHED_STATUSES:
+            raise InvalidState(f"Shipment is already {shipment.status.value}")
+        
     async def verify_delivery(
         self,
         id: UUID,
@@ -156,30 +159,20 @@ class ShipmentService(BaseService):
         shipment = await self._get_partner_shipment(id, partner)
 
         if shipment.status != ShipmentStatus.out_for_delivery:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Shipment is not out for delivery",
-            )
+            raise InvalidState("Shipment is not out for delivery")
 
         # Count first, so each try is counted before the code is checked
         attempts = await count_verification_attempt(id)
         if attempts > MAX_VERIFICATION_ATTEMPTS:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many wrong codes, request a new code",
-            )
+            raise TooManyAttempts("Too many wrong codes, request a new code")
 
         stored_hash = await get_verification_code_hash(id)
         if stored_hash is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Code expired, request a new code",
-            )
+            raise InvalidInput("Code expired, request a new code")
 
         if not is_valid_verification_code(id, code, stored_hash):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Wrong code, {MAX_VERIFICATION_ATTEMPTS - attempts} attempts left",
+            raise InvalidInput(
+                f"Wrong code, {MAX_VERIFICATION_ATTEMPTS - attempts} attempts left"
             )
 
         await self.event_service.add(
@@ -199,18 +192,34 @@ class ShipmentService(BaseService):
         shipment = await self._get_partner_shipment(id, partner)
 
         if shipment.status != ShipmentStatus.out_for_delivery:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Shipment is not out for delivery",
-            )
+            raise InvalidState("Shipment is not out for delivery")
 
         if not await can_resend_verification_code(id):
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Please wait before requesting another code",
-            )
+            raise TooManyAttempts("Please wait before requesting another code")
 
         await self.event_service.resend_verification_code(shipment)
 
+    async def add_tag(self, id: UUID, tag_name: TagName, seller: Seller) -> Shipment:
+        # Only the seller who owns the shipment knows what is inside it
+        shipment = await self._get_seller_shipment(id, seller)
+        self._ensure_active(shipment)
 
-    
+        tag = await self.tag_service.get_by_name(tag_name)
+        if tag in shipment.tags:
+            raise AlreadyExists(f"Shipment already has the {tag_name.value} tag")
+
+        # Adding to the list makes SQLAlchemy insert a row in shipment_tag
+        shipment.tags.append(tag)
+        return await self._update(shipment)
+
+    async def remove_tag(self, id: UUID, tag_name: TagName, seller: Seller) -> Shipment:
+        shipment = await self._get_seller_shipment(id, seller)
+        self._ensure_active(shipment)
+
+        tag = await self.tag_service.get_by_name(tag_name)
+        if tag not in shipment.tags:
+            raise EntityNotFound(f"Shipment doesn't have the {tag_name.value} tag")
+
+        # Removing from the list deletes the row in shipment_tag, not the tag
+        shipment.tags.remove(tag)
+        return await self._update(shipment)

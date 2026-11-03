@@ -1,9 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
 
-from app.database.models import ShipmentEvent, ShipmentStatus
+from app.database.models import ShipmentEvent, ShipmentStatus, TagName
 
 
 class BaseShipment(BaseModel):
@@ -12,10 +12,19 @@ class BaseShipment(BaseModel):
     destination: int
 
 
+class TagRead(BaseModel):
+    # Lets pydantic read the values from a Tag database object
+    model_config = ConfigDict(from_attributes=True)
+
+    name: TagName
+    instruction: str
+
+
 class ShipmentRead(BaseShipment):
     id: UUID
     status: ShipmentStatus | None
     timeline: list[ShipmentEvent]
+    tags: list[TagRead]
     estimated_delivery: datetime
 
 

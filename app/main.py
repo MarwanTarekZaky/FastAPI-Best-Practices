@@ -10,6 +10,7 @@ from fastapi.responses import (
 from scalar_fastapi import get_scalar_api_reference
 
 from app.api.router import master_router
+from app.core.exceptions import add_exception_handlers
 from app.utils import APP_DIR
 
 
@@ -24,6 +25,7 @@ app = FastAPI(
 )
 
 app.include_router(master_router)
+add_exception_handlers(app)
 
 
 @app.get(

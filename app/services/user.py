@@ -1,10 +1,10 @@
 from typing import Any
 
-from fastapi import HTTPException, status
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import AlreadyExists, InvalidCredentials
 from app.utils import generate_access_token
 
 from .base import BaseService
@@ -22,10 +22,7 @@ class UserService(BaseService):
 
     async def _add_user(self, data: dict) -> Any:
         if await self._get_by_email(data["email"]) is not None:
-            raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
-        )
+            raise AlreadyExists("Email already registered")
             
         user = self.model(
             **data,
@@ -46,10 +43,7 @@ class UserService(BaseService):
             password,
             user.password_hash,
         ):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email or password is incorrect",
-            )
+            raise InvalidCredentials("Email or password is incorrect")
 
         return generate_access_token(
             data={

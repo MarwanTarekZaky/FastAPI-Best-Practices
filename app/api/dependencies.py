@@ -1,9 +1,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import NotAuthenticated
 from app.core.security import oauth2_scheme_partner, oauth2_scheme_seller
 from app.database.models import DeliveryPartner, Seller
 from app.database.redis import is_jti_blacklisted
@@ -12,6 +13,7 @@ from app.services.delivery_partner import DeliveryPartnerService
 from app.services.seller import SellerService
 from app.services.shipment import ShipmentService
 from app.services.shipment_events import ShipmentEventService
+from app.services.tag import TagService
 from app.utils import decode_access_token
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -21,10 +23,7 @@ async def _get_access_token(token: str) -> dict:
     data = decode_access_token(token)
 
     if data is None or await is_jti_blacklisted(data["jti"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token",
-        )
+        raise NotAuthenticated("Invalid or expired access token")
 
     return data
 
@@ -53,10 +52,7 @@ async def get_current_seller(
     )
 
     if seller is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized",
-        )
+        raise NotAuthenticated("Not authorized")
 
     return seller
 
@@ -72,10 +68,7 @@ async def get_current_partner(
     )
 
     if partner is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized",
-        )
+        raise NotAuthenticated("Not authorized")
 
     return partner
 
@@ -85,8 +78,12 @@ def get_shipment_service(session: SessionDep):
         session,
         DeliveryPartnerService(session),
         ShipmentEventService(session),
+        TagService(session),
     )
 
+
+def get_tag_service(session: SessionDep):
+    return TagService(session)
 
 
 def get_seller_service(session: SessionDep):
@@ -111,3 +108,5 @@ SellerServiceDep = Annotated[SellerService, Depends(get_seller_service)]
 DeliveryPartnerServiceDep = Annotated[
     DeliveryPartnerService, Depends(get_delivery_partner_service)
 ]
+
+TagServiceDep = Annotated[TagService, Depends(get_tag_service)]

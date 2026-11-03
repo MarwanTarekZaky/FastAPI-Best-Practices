@@ -6,9 +6,9 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import jwt
-from fastapi import HTTPException, status
 
 from app.config import security_settings
+from app.core.exceptions import NotAuthenticated
 
 APP_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = APP_DIR / "templates"
@@ -34,10 +34,7 @@ def decode_access_token(token: str) -> dict | None:
             algorithms=[security_settings.JWT_ALGORITHM],
         )
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired!",
-        )
+        raise NotAuthenticated("Token expired")
     except jwt.PyJWTError:
         return None
 

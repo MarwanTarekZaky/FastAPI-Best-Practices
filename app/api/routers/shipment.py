@@ -1,8 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 
+from app.core.exceptions import EntityNotFound, InvalidInput
+from app.database.models import TagName
 from app.utils import TEMPLATE_DIR
 
 from ..dependencies import DeliveryPartnerDep, SellerDep, ShipmentServiceDep
@@ -27,10 +29,7 @@ async def get_shipment(
     shipment = await service.get(id)
 
     if shipment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Given id doesn't exist!",
-        )
+        raise EntityNotFound("Given id doesn't exist")
 
     return shipment
 
@@ -39,10 +38,7 @@ async def get_tracking(request: Request, id: UUID, service: ShipmentServiceDep):
     shipment = await service.get(id)
 
     if shipment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Given id doesn't exist!",
-        )
+        raise EntityNotFound("Given id doesn't exist")
 
     context = shipment.model_dump()
     context["status"] = shipment.status
@@ -79,10 +75,7 @@ async def update_shipment(
     update = shipment_update.model_dump(exclude_none=True)
 
     if not update:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No data provided to update",
-        )
+        raise InvalidInput("No data provided to update")
 
     return await service.update(id, shipment_update, partner)
 
@@ -118,3 +111,24 @@ async def cancel_shipment(
 ):
     return await service.cancel(id, seller)
 
+
+### Seller adds a predefined tag to their shipment
+@router.post("/tag", response_model=ShipmentRead)
+async def add_tag(
+    id: UUID,
+    tag_name: TagName,
+    seller: SellerDep,
+    service: ShipmentServiceDep,
+):
+    return await service.add_tag(id, tag_name, seller)
+
+
+### Seller removes a tag from their shipment
+@router.delete("/tag", response_model=ShipmentRead)
+async def remove_tag(
+    id: UUID,
+    tag_name: TagName,
+    seller: SellerDep,
+    service: ShipmentServiceDep,
+):
+    return await service.remove_tag(id, tag_name, seller)

@@ -16,6 +16,33 @@ class ShipmentStatus(str, Enum):
     cancelled = "cancelled"
 
 
+class TagName(str, Enum):
+    express = "express"
+    standard = "standard"
+    fragile = "fragile"
+    heavy = "heavy"
+    international = "international"
+    temperature_controlled = "temperature_controlled"
+    gift = "gift"
+    
+
+class ShipmentTag(SQLModel, table=True):
+    # Link table for the many-to-many relationship: one row per (shipment, tag) pair.
+    # The two columns together are the primary key, so a pair can't be added twice
+    __tablename__ = "shipment_tag"
+
+    shipment_id: UUID = Field(
+        foreign_key="shipment.id",
+        primary_key=True,
+        ondelete="CASCADE",
+    )
+    tag_id: UUID = Field(
+        foreign_key="tag.id",
+        primary_key=True,
+        ondelete="CASCADE",
+    )
+    
+     
 class Shipment(SQLModel, table=True):
     __tablename__ = "shipment"
 
@@ -63,7 +90,11 @@ class Shipment(SQLModel, table=True):
         back_populates="shipments",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
-    
+    tags: list[Tag] = Relationship(
+        back_populates="shipments",
+        link_model=ShipmentTag,
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
     @property
     def status(self):
         return self.timeline[-1].status if len(self.timeline) > 0 else None
@@ -96,7 +127,30 @@ class ShipmentEvent(SQLModel, table=True):
         back_populates="timeline",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
-    
+ 
+
+class Tag(SQLModel, table=True):
+    __tablename__ = "tag"
+
+    id: UUID = Field(
+        sa_column=Column(
+            postgresql.UUID,
+            default=uuid4,
+            primary_key=True,
+        )
+    )
+    name: TagName = Field(unique=True)
+    instruction: str
+
+    shipments: list[Shipment] = Relationship(
+        back_populates="tags",
+        link_model=ShipmentTag,
+        # A tag can have thousands of shipments, so never load them all by accident.
+        # Query them instead, see TagService.get_shipments
+        sa_relationship_kwargs={"lazy": "raise"},
+    )
+
+   
 class User(SQLModel):
     name: str
 
