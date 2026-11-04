@@ -11,6 +11,7 @@ from fastapi.responses import (
 )
 from scalar_fastapi import get_scalar_api_reference
 
+from app.api.docs import DESCRIPTION, TAGS_METADATA
 from app.api.router import master_router
 from app.config import app_settings
 from app.core.exceptions import add_exception_handlers
@@ -25,9 +26,24 @@ async def lifespan_handler(app: FastAPI):
 
 # FastAPI App
 app = FastAPI(
+    title="FastShip API",
+    summary="Shipment delivery for sellers and delivery partners",
+    description=DESCRIPTION,
+    # The API's own version, change it when the API changes
+    version="0.1.0",
+    terms_of_service="https://fastship.example.com/terms",
+    contact={
+        "name": "FastShip Support",
+        "url": "https://fastship.example.com/support",
+        "email": "support@fastship.example.com",
+    },
+    openapi_tags=TAGS_METADATA,
+    # We use Scalar at /scalar, so ReDoc isn't needed. Swagger stays at /docs
+    redoc_url=None,
     # Server start/stop listener
     lifespan=lifespan_handler,
 )
+
 
 app.include_router(master_router)
 add_exception_handlers(app)
@@ -111,5 +127,5 @@ def get_custom_response():
 def get_scalar_docs():
     return get_scalar_api_reference(
         openapi_url=app.openapi_url,
-        title="Scalar API",
+        title=app.title,
     )
