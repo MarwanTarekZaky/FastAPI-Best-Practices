@@ -6,6 +6,13 @@ _base_config = SettingsConfigDict(
     extra="ignore",
 )
 
+class AppSettings(BaseSettings):
+    # Browser apps (frontends) allowed to call this API. In .env, a JSON list:
+    # CORS_ORIGINS=["http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+
+    model_config = _base_config
+
 class DatabaseSettings(BaseSettings):
     POSTGRES_SERVER: str
     POSTGRES_PORT: int
@@ -68,6 +75,7 @@ class CelerySettings(BaseSettings):
 
    
 # Values are loaded from .env, type checkers can't see that
+app_settings = AppSettings()
 db_settings = DatabaseSettings()  # type: ignore[call-arg]
 security_settings = SecuritySettings()  # type: ignore[call-arg]
 notification_settings = NotificationSettings() # type: ignore[call-arg]

@@ -82,5 +82,9 @@ def add_exception_handlers(app: FastAPI):
         # printed in the terminal, because Starlette re-raise it after this response
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "Internal server error"},
+            content={
+                "detail": "Internal server error",
+                # The client can send this ID to support to find the error in the logs
+                "request_id": getattr(request.state, "request_id", None),
+            },
         )

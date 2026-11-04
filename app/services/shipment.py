@@ -109,7 +109,8 @@ class ShipmentService(BaseService):
         return await self._update(shipment)
     
     async def cancel(self, id: UUID, seller: Seller) -> Shipment:
-        shipment = await self.get(id)
+        shipment = await self._get_seller_shipment(id, seller)
+
         self._ensure_active(shipment)
         
         event = await self.event_service.add(

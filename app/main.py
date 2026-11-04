@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import (
     FileResponse,
     JSONResponse,
@@ -10,7 +12,10 @@ from fastapi.responses import (
 from scalar_fastapi import get_scalar_api_reference
 
 from app.api.router import master_router
+from app.config import app_settings
 from app.core.exceptions import add_exception_handlers
+from app.core.log_config import setup_logging
+from app.core.middleware import log_requests
 from app.utils import APP_DIR
 
 
@@ -26,6 +31,30 @@ app = FastAPI(
 
 app.include_router(master_router)
 add_exception_handlers(app)
+
+setup_logging()
+
+# The LAST middleware added runs FIRST on each request (it wraps the others)
+
+# Lets browser apps on these origins call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=app_settings.CORS_ORIGINS,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    # Response headers that browser JavaScript is allowed to read
+    expose_headers=["X-Request-ID", "Server-Timing"],
+    # We send tokens in the Authorization header, not cookies, so no credentials
+    allow_credentials=False,
+    # Browsers may cache the preflight answer for 10 minutes
+    max_age=600,
+)
+
+# Compress responses bigger than 1 KB for clients that support gzip
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Added last, so it runs first and times everything, including CORS and GZip
+app.middleware("http")(log_requests)
 
 
 @app.get(
