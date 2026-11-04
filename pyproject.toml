@@ -23,6 +23,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "fakeredis",
 ]
 
 [tool.fastapi]
@@ -30,3 +33,12 @@ entrypoint = "app.main:app"
 
 [tool.ruff]
 line-length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Async tests and fixtures work without a @pytest.mark.asyncio on each one
+asyncio_mode = "auto"
+# One event loop for the whole run, the database engine is shared by every test
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+
