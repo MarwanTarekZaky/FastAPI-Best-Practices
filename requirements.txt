@@ -93,6 +93,7 @@ rich-toolkit==0.20.6
 rignore==0.8.1
 ruff==0.17.2
 scalar-fastapi==1.9.1
+segno==1.6.6
 sentry-sdk==2.73.0
 shellingham==1.5.4
 sortedcontainers==2.4.0

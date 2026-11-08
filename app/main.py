@@ -11,7 +11,7 @@ from fastapi.responses import (
 )
 from scalar_fastapi import get_scalar_api_reference
 
-from app.api.docs import DESCRIPTION, TAGS_METADATA
+from app.api.docs import DESCRIPTION, TAGS_METADATA, operation_id
 from app.api.router import master_router
 from app.config import app_settings
 from app.core.exceptions import add_exception_handlers
@@ -38,6 +38,7 @@ app = FastAPI(
         "email": "support@fastship.example.com",
     },
     openapi_tags=TAGS_METADATA,
+    generate_unique_id_function=operation_id,
     # We use Scalar at /scalar, so ReDoc isn't needed. Swagger stays at /docs
     redoc_url=None,
     # Server start/stop listener

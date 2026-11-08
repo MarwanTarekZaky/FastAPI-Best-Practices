@@ -1,13 +1,17 @@
 import asyncio
 import logging
 from datetime import UTC, datetime
+from io import BytesIO
 
+import segno
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from fastapi_mail.errors import ConnectionErrors
+from fastapi_mail.schemas import MultipartSubtypeEnum
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlmodel import col
+from starlette.datastructures import Headers, UploadFile
 from twilio.base.exceptions import TwilioException  # type: ignore[import-untyped]
 from twilio.http.http_client import TwilioHttpClient  # type: ignore[import-untyped]
 from twilio.rest import Client  # type: ignore[import-untyped]
@@ -47,6 +51,7 @@ def _send_template_email(
     subject: str,
     context: dict,
     template_name: str,
+    attachments: list[UploadFile | dict | str] | None = None,
 ):
     # fastapi-mail is async and tasks are not, so asyncio.run bridges them
     asyncio.run(
@@ -56,10 +61,37 @@ def _send_template_email(
                 subject=subject,
                 template_body=context,
                 subtype=MessageType.html,
+                attachments=attachments or [],
+                # "related" lets the HTML show attached images with <img src="cid:...">
+                multipart_subtype=MultipartSubtypeEnum.related,
             ),
             template_name=template_name,
         )
     )
+
+
+def _qr_code_image(text: str, content_id: str) -> dict:
+    # A PNG QR code, attached inline so email apps show it inside the message.
+    # It's made here because sending the code to an online QR service would leak it
+    image = BytesIO()
+    # make_qr, not make: for short text make() picks a Micro QR, which most
+    # scanners (and browsers) can't read
+    segno.make_qr(text, error="m").save(image, kind="png", scale=8, border=2)
+    image.seek(0)
+
+    return {
+        "file": UploadFile(
+            file=image,
+            filename="delivery-code.png",
+            headers=Headers({"content-type": "image/png"}),
+        ),
+        "headers": {
+            "Content-ID": f"<{content_id}>",
+            "Content-Disposition": 'inline; filename="delivery-code.png"',
+        },
+        "mime_type": "image",
+        "mime_subtype": "png",
+    }
 
 
 @celery_app.task(**EMAIL_RETRY_OPTIONS)
@@ -116,6 +148,8 @@ def send_verification_code(self, shipment_id: str, email: str, phone: str | None
         "Your Order is Arriving Soon 🛵",
         {"code": code},
         "mail_out_for_delivery.html",
+        # The partner can scan it instead of typing the code
+        attachments=[_qr_code_image(code, "delivery_code")],
     )
 
 

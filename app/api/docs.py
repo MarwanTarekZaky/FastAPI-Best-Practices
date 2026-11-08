@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi.openapi.models import Example
+from fastapi.routing import APIRoute
 
 from .schemas.common import ErrorResponse
 
@@ -90,3 +91,9 @@ SHIPMENT_EXAMPLES: dict[str, Example] = {
         },
     },
 }
+
+
+def operation_id(route: APIRoute) -> str:
+    # Name each endpoint after its function, e.g. get_shipment instead of
+    # get_shipment_shipment__get, so the generated frontend client is redable
+    return route.name

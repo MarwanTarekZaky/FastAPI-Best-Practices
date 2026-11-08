@@ -9,6 +9,7 @@ from app.database.redis import add_jti_to_blacklist
 from ..dependencies import (
     DeliveryPartnerDep,
     DeliveryPartnerServiceDep,
+    ShipmentServiceDep,
     get_partner_access_token,
 )
 from ..docs import errors
@@ -18,6 +19,7 @@ from ..schemas.delivery_partner import (
     DeliveryPartnerRead,
     DeliveryPartnerUpdate,
 )
+from ..schemas.shipment import ShipmentRead
 
 router = APIRouter(prefix="/partner", tags=["Delivery Partner"])
 
@@ -49,6 +51,31 @@ async def login_delivery_partner(
     """Send the email as `username`. The token expires after a while."""
     token = await service.token(request_form.username, request_form.password)
     return Token(access_token=token)
+
+
+@router.get(
+    "/me",
+    response_model=DeliveryPartnerRead,
+    summary="The logged in partner",
+    responses=errors(401),
+)
+async def get_partner_profile(partner: DeliveryPartnerDep):
+    """The frontend uses it to show who is logged in and fill the profile form."""
+    return partner
+
+
+@router.get(
+    "/shipments",
+    response_model=list[ShipmentRead],
+    summary="My assigned shipments",
+    responses=errors(401),
+)
+async def get_partner_shipments(
+    partner: DeliveryPartnerDep,
+    service: ShipmentServiceDep,
+):
+    """Every shipment assigned to the logged in partner, newest first."""
+    return await service.get_by_partner(partner)
 
 
 @router.patch(

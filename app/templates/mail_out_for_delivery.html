@@ -3,6 +3,8 @@
         location and answer to rider's incoming call.</p>
     {% if code %}
     <p>Your delivery code is <strong>{{ code }}</strong>. Share it only with the delivery partner when you receive your shipment.</p>
+    <p>The delivery partner can also scan this code:</p>
+    <img src="cid:delivery_code" alt="Delivery code {{ code }}" width="200" height="200">
     {% else %}
     <p>We sent your delivery code by SMS. Share it only with the delivery partner when you receive your shipment.</p>
     {% endif %}
