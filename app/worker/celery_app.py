@@ -1,7 +1,9 @@
 from celery import Celery  # type: ignore[import-untyped]
 from celery.schedules import crontab  # type: ignore[import-untyped]
+from celery.signals import worker_init  # type: ignore[import-untyped]
 
 from app.config import celery_settings
+from app.core.telemetry import setup_worker_telemetry
 
 celery_app = Celery(
     "fastship",
@@ -43,3 +45,10 @@ celery_app.conf.update(
         },
     },
 )
+
+@worker_init.connect(weak=False)
+def start_telemetry(**kwargs):
+    # Runs once when the worker starts. We use --pool=threads, so the tasks run
+    # in this same process. (The default prefork pool would need
+    # worker_process_init, which runs in each forked process)
+    setup_worker_telemetry()

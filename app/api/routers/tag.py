@@ -1,10 +1,12 @@
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Query, Response
 
 from app.database.models import TagName
 
 from ..dependencies import SellerDep, TagServiceDep
-from ..docs import errors
-from ..schemas.shipment import ShipmentRead, TagRead
+from ..docs import TOTAL_COUNT, errors
+from ..schemas.shipment import ShipmentListParams, ShipmentRead, TagRead
 
 router = APIRouter(prefix="/tag", tags=["Tag"])
 
@@ -23,12 +25,16 @@ async def get_tags(service: TagServiceDep):
     "/shipments",
     response_model=list[ShipmentRead],
     summary="My shipments with a tag",
-    responses=errors(401),
+    responses={**TOTAL_COUNT, **errors(401)},
 )
 async def get_shipments_by_tag(
     tag_name: TagName,
     seller: SellerDep,
     service: TagServiceDep,
+    params: Annotated[ShipmentListParams, Query()],
+    response: Response,
 ):
-    """The logged in seller's shipments that have this tag, newest first."""
-    return await service.get_shipments(tag_name, seller)
+    """One page of the logged in seller's shipments that have this tag."""
+    shipments, total = await service.get_shipments(tag_name, seller, params)
+    response.headers["X-Total-Count"] = str(total)
+    return shipments

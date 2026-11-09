@@ -58,6 +58,18 @@ def errors(*codes: int) -> dict[int | str, dict[str, Any]]:
         for code in codes
     }
 
+# For endpoints that return one page of a list: documents the header that says
+# how many results there are on all pages together
+TOTAL_COUNT: dict[int | str, dict[str, Any]] = {
+    200: {
+        "headers": {
+            "X-Total-Count": {
+                "description": "How many results match, on all pages together",
+                "schema": {"type": "integer"},
+            },
+        },
+    },
+}
 
 # Named examples for the request body, the docs show them in a dropdown
 SHIPMENT_EXAMPLES: dict[str, Example] = {

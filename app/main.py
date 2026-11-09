@@ -17,6 +17,7 @@ from app.config import app_settings
 from app.core.exceptions import add_exception_handlers
 from app.core.log_config import setup_logging
 from app.core.middleware import log_requests
+from app.core.telemetry import setup_telemetry
 from app.utils import APP_DIR
 
 
@@ -50,7 +51,7 @@ app.include_router(master_router)
 add_exception_handlers(app)
 
 setup_logging()
-
+setup_telemetry(app)
 # The LAST middleware added runs FIRST on each request (it wraps the others)
 
 # Lets browser apps on these origins call the API
@@ -60,7 +61,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     # Response headers that browser JavaScript is allowed to read
-    expose_headers=["X-Request-ID", "Server-Timing"],
+    expose_headers=["X-Request-ID", "Server-Timing", "X-Total-Count"],
     # We send tokens in the Authorization header, not cookies, so no credentials
     allow_credentials=False,
     # Browsers may cache the preflight answer for 10 minutes
@@ -122,7 +123,11 @@ class UpperResponse(Response):
 def get_custom_response():
     return "be bold!"
 
-    
+
+@app.get("/health", include_in_schema=False)
+def health_check():
+    return {"status": "ok"}
+
 ### Scalar API Documentation
 @app.get("/scalar", include_in_schema=False)
 def get_scalar_docs():

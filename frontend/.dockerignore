@@ -1,0 +1,13 @@
+# The image runs `npm ci` and `npm run build` itself, so the local results
+# would only slow the build down (node_modules is about 380 MB)
+node_modules/
+dist/
+.vite/
+
+# Local settings, VITE_API_URL is decided at build time
+.env
+.env.*
+
+.git/
+.vscode/
+Dockerfile

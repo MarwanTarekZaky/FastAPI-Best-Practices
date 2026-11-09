@@ -1,0 +1,162 @@
+# The whole FastShip app on your machine, with one command:
+#   docker compose up --build -d
+# Frontend: http://localhost:8080   API docs: http://localhost:8000/scalar
+
+name: fastship
+
+# Shared by every service that runs our Python image. Compose ignores keys that
+# start with x-, they only exist to be copied in with <<: *backend
+x-backend: &backend
+  image: fastship-api:dev
+  build: .
+  env_file: .env
+  # .env is written for your Mac, where everything is on localhost. Inside
+  # Compose each service is reached by its service name instead
+  environment:
+    POSTGRES_SERVER: db
+    POSTGRES_PORT: 5432
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    CELERY_BROKER_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/fastship
+    CELERY_RESULT_BACKEND: redis://redis:6379/1
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:18-alpine
+    # The image creates this user and database the first time it starts
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # Postgres 18 keeps its data under /var/lib/postgresql
+      - db-data:/var/lib/postgresql
+    ports:
+      # For pgAdmin on your Mac. 5433 because your own Postgres uses 5432.
+      # 127.0.0.1: only your Mac can connect, not other devices on the Wi-Fi
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      # Healthy when Postgres accepts connections. $$ is a $ that Compose leaves
+      # alone, so the container's own variable is used
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    # RabbitMQ saves its data under its host name, a random one would lose it
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: fastship
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      # Management website: http://localhost:15673 (your own RabbitMQ uses 15672)
+      - "127.0.0.1:15673:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # Runs once and exits: creates or updates the tables, then the API starts
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      # The image has Python but not curl
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/health')
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Sends the emails and SMS from the queue
+  worker:
+    <<: *backend
+    command:
+      - celery
+      - -A
+      - app.worker.celery_app
+      - worker
+      - --pool=threads
+      - --concurrency=4
+      - --loglevel=INFO
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Adds the scheduled tasks to the queue, like the daily overdue check
+  beat:
+    <<: *backend
+    # The schedule file goes in /tmp, the app user can't write in /app
+    command:
+      - celery
+      - -A
+      - app.worker.celery_app
+      - beat
+      - --loglevel=INFO
+      - --schedule=/tmp/celerybeat-schedule
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    # The React app, built and served by nginx, which also forwards /api to FastAPI
+  web:
+    image: fastship-web:dev
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+# Named volumes live outside the containers: the data survives
+# `docker compose down` and new images. `down -v` deletes them
+volumes:
+  db-data:
+  redis-data:
+  rabbitmq-data:
+
+

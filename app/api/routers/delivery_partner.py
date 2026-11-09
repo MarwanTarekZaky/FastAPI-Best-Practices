@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.exceptions import InvalidInput
@@ -12,14 +12,14 @@ from ..dependencies import (
     ShipmentServiceDep,
     get_partner_access_token,
 )
-from ..docs import errors
+from ..docs import TOTAL_COUNT, errors
 from ..schemas.common import Message, Token
 from ..schemas.delivery_partner import (
     DeliveryPartnerCreate,
     DeliveryPartnerRead,
     DeliveryPartnerUpdate,
 )
-from ..schemas.shipment import ShipmentRead
+from ..schemas.shipment import ShipmentListParams, ShipmentRead
 
 router = APIRouter(prefix="/partner", tags=["Delivery Partner"])
 
@@ -68,14 +68,18 @@ async def get_partner_profile(partner: DeliveryPartnerDep):
     "/shipments",
     response_model=list[ShipmentRead],
     summary="My assigned shipments",
-    responses=errors(401),
+    responses={**TOTAL_COUNT, **errors(401)},
 )
 async def get_partner_shipments(
     partner: DeliveryPartnerDep,
     service: ShipmentServiceDep,
+    params: Annotated[ShipmentListParams, Query()],
+    response: Response,
 ):
-    """Every shipment assigned to the logged in partner, newest first."""
-    return await service.get_by_partner(partner)
+    """One page of the shipments assigned to the logged in partner."""
+    shipments, total = await service.get_by_partner(partner, params)
+    response.headers["X-Total-Count"] = str(total)
+    return shipments
 
 
 @router.patch(

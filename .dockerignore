@@ -1,0 +1,28 @@
+# What Docker must NOT send to the build. Everything else in this folder is
+# the "build context" that COPY can read
+
+# Secrets: the settings come from environment variables when the container runs
+.env
+*.env
+
+# Your local environment and caches, the image installs its own packages
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Not needed to run the API. The frontend has its own Dockerfile
+.git/
+.vscode/
+frontend/
+docs/
+tests/
+Temp/
+logs/
+celerybeat-schedule*
+*.db
+scratch*.py

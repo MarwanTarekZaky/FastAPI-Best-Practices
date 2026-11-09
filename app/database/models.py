@@ -181,7 +181,7 @@ class Seller(User, table=True):
 
     shipments: list[Shipment] = Relationship(
         back_populates="seller",
-        sa_relationship_kwargs={"lazy": "selectin"},
+        sa_relationship_kwargs={"lazy": "raise"},
     )
 
 

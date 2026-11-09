@@ -4,6 +4,7 @@ import time
 from uuid import uuid4
 
 from fastapi import Request
+from opentelemetry import trace
 
 logger = logging.getLogger("fastship.requests")
 
@@ -21,7 +22,8 @@ async def log_requests(request: Request, call_next):
         request_id = uuid4().hex
     # request.state is shared with routes and exception handlers for this request
     request.state.request_id = request_id
-
+    trace.get_current_span().set_attribute("request_id", request_id)
+    
     start = time.perf_counter()
     try:
         response = await call_next(request)

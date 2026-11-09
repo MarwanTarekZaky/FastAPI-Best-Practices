@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
@@ -87,4 +88,39 @@ class ShipmentVerify(BaseModel):
         pattern=r"^\d{6}$",
         description="The 6 digit code the client received",
         examples=["123456"],
+    )
+
+
+class ShipmentSort(StrEnum):
+    created_at = "created_at",
+    estimated_delivery = "estimated_delivery",
+    weight = "weight"
+    
+
+class SortOrder(StrEnum):
+    asc = "asc",
+    desc = "desc"
+    
+
+class ShipmentListParams(BaseModel):
+    """Which page of shipments to return, and in what order"""
+    
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=100,
+        description="How many shipments to return, at most 100",
+    )
+    offset: int = Field(
+        default=0,
+        ge=0,
+        description="How many to skip. Page 3 of 20 per page is offset=40"
+    )
+    sort_by: ShipmentSort = Field(
+        default=ShipmentSort.created_at,
+        description="The field to sort by",
+    )
+    order: SortOrder = Field(
+        default=SortOrder.desc,
+        description="`desc` is newest, latest or heaviest first",
     )

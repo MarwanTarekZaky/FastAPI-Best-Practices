@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _base_config = SettingsConfigDict(
@@ -7,10 +9,14 @@ _base_config = SettingsConfigDict(
 )
 
 class AppSettings(BaseSettings):
+    # "production" turns off what is only meant for your own machine,
+    # like printing every SQL query and writing logs/requests.log
+    ENVIRONMENT: Literal["development", "production"] = "development"
     # Browser apps (frontends) allowed to call this API. In .env, a JSON list:
     # CORS_ORIGINS=["http://localhost:5173"]
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
-
+    LOGFIRE_TOKEN: str | None = None
+    
     model_config = _base_config
 
 class DatabaseSettings(BaseSettings):

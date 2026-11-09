@@ -7,7 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from app.api.schemas.shipment import ShipmentCreate, ShipmentUpdate
+from app.api.schemas.shipment import (
+    ShipmentCreate,
+    ShipmentListParams,
+    ShipmentUpdate,
+)
 from app.core.exceptions import (
     AlreadyExists,
     EntityNotFound,
@@ -34,6 +38,7 @@ from app.utils import is_valid_verification_code
 
 from .base import BaseService
 from .delivery_partner import DeliveryPartnerService
+from .pagination import paginate_shipments
 from .tag import TagService
 
 MAX_VERIFICATION_ATTEMPTS = 5
@@ -54,25 +59,24 @@ class ShipmentService(BaseService):
     async def get(self, id: UUID) -> Shipment | None:
         return await self._get(id)
     
-    async def get_by_seller(self, seller: Seller) -> Sequence[Shipment]:
-        # Newest first, for the seller's dashboard
-        return (
-            await self.session.scalars(
-                select(Shipment)
-                .where(col(Shipment.seller_id) == seller.id)
-                .order_by(col(Shipment.created_at).desc())
-            )
-        ).all()
+    async def get_by_seller(
+        self, seller: Seller, params: ShipmentListParams
+    ) -> tuple[Sequence[Shipment], int]:
+        return await paginate_shipments(
+            self.session,
+            select(Shipment).where(col(Shipment.seller_id) == seller.id),
+            params,
+        )
 
-    async def get_by_partner(self, partner: DeliveryPartner) -> Sequence[Shipment]:
-        return (
-            await self.session.scalars(
-                select(Shipment)
-                .where(col(Shipment.delivery_partner_id) == partner.id)
-                .order_by(col(Shipment.created_at).desc())
-            )
-        ).all()
-    
+    async def get_by_partner(
+        self, partner: DeliveryPartner, params: ShipmentListParams
+    ) -> tuple[Sequence[Shipment], int]:
+        return await paginate_shipments(
+            self.session,
+            select(Shipment).where(col(Shipment.delivery_partner_id) == partner.id),
+            params,
+        )
+
     async def add(self, shipment_create: ShipmentCreate, seller: Seller) -> Shipment:
         new_shipment = Shipment(
             **shipment_create.model_dump(),

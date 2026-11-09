@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.database.redis import add_jti_to_blacklist
@@ -11,10 +11,10 @@ from ..dependencies import (
     ShipmentServiceDep,
     get_seller_access_token,
 )
-from ..docs import errors
+from ..docs import TOTAL_COUNT, errors
 from ..schemas.common import Message, Token
 from ..schemas.seller import SellerCreate, SellerRead
-from ..schemas.shipment import ShipmentRead
+from ..schemas.shipment import ShipmentListParams, ShipmentRead
 
 router = APIRouter(prefix="/seller", tags=["Seller"])
 
@@ -61,11 +61,18 @@ async def get_seller_profile(seller: SellerDep):
     "/shipments",
     response_model=list[ShipmentRead],
     summary="My shipments",
-    responses=errors(401),
+    responses={**TOTAL_COUNT, **errors(401)},
 )
-async def get_seller_shipments(seller: SellerDep, service: ShipmentServiceDep):
-    """Every shipment the logged in seller created, newest first."""
-    return await service.get_by_seller(seller)
+async def get_seller_shipments(
+    seller: SellerDep,
+    service: ShipmentServiceDep,
+    params: Annotated[ShipmentListParams, Query()],
+    response: Response,
+):
+    """One page of the logged in seller's shipments, newest first by default."""
+    shipments, total = await service.get_by_seller(seller, params)
+    response.headers["X-Total-Count"] = str(total)
+    return shipments
 
 
 @router.get(
